@@ -1,0 +1,46 @@
+name: Build Flutter RPM
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Flutter web
+        run: flutter build web --release
+
+      - name: Install fpm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev build-essential
+          sudo gem install --no-document fpm
+
+      - name: Create RPM package
+        run: |
+          mkdir -p package/usr/share/my_flutter_app
+          cp -r build/web/* package/usr/share/my_flutter_app/
+          fpm -s dir -t rpm -n my_flutter_app -v 1.0.0 -C package usr/share/my_flutter_app
+
+      - name: Upload RPM
+        uses: actions/upload-artifact@v3
+        with:
+          name: my_flutter_app-1.0.0.rpm
+          path: *.rpm
