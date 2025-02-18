@@ -1,0 +1,108 @@
+{
+  "@@locale": "en",
+  "@compressedMessage": {
+    "placeholders": {
+      "percent": {
+        "example": "29",
+        "type": "int"
+      }
+    }
+  },
+  "@convertedMessage": {
+    "placeholders": {
+      "format": {
+        "example": "MP4",
+        "type": "String"
+      }
+    }
+  },
+  "@currentPath": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@doneMessage": {
+    "placeholders": {
+      "type": {
+        "example": "compressed",
+        "type": "String"
+      }
+    }
+  },
+  "@pathErreur": {
+    "placeholders": {
+      "type": {
+        "example": "directory",
+        "type": "String"
+      }
+    }
+  },
+  "ajouter": "or click to add files",
+  "attente": "Waiting",
+  "avis": "Give us your feedback",
+  "bonne": "Good",
+  "checkUpdates": "Check Updates",
+  "cheminVide": "Please enter a valid path",
+  "clickAdd": "or click to add files",
+  "clickNew": "Click here to compress new files",
+  "clickSelect": "or click to select files",
+  "coffee": "Buy me a coffee",
+  "compressedMessage": "In total, your files are {percent}% smaller.",
+  "compresser": "Compress",
+  "compression": "Compressing...",
+  "convertedMessage": "All your files have been converted to {format}.",
+  "currentPath": "Current {name} path",
+  "deposez": "Drop your files here",
+  "doneMessage": "Your files have been successfully {type}.",
+  "dossierParDefaut": "Default output directory",
+  "economises": "economized",
+  "erreur": "Error",
+  "erreurFin": "An error has occurred.",
+  "erreurFinDescription0": "No files have been converted.",
+  "erreurFinDescription1": "Some files could not be processed.",
+  "explorer": "Explore",
+  "faible": "Low",
+  "feedback": "Give me your feedback !",
+  "ffmpegRequired": "A module (ffmpeg) is required to continue. Would you like to install it? An internet connection is required for installation.",
+  "ffmpegTooltip": "FFmpeg lets you compress\nand convert audio and video files.",
+  "fichiersTraites": "files processed",
+  "gsError0": "An error occurred while checking GhostScript.",
+  "gsError1": "Check that you have followed the instructions correctly.",
+  "gsSuccess0": "GhostScript has been successfully installed.",
+  "gsSuccess1": "You can now compress your PDF files.",
+  "haute": "High",
+  "ici": "here",
+  "installation": "Installation in progress",
+  "installationError": "Sorry, but an error has occurred.\nPlease make sure you are connected to the Internet.",
+  "installer": "Install",
+  "installerGs": "to download the installation file.\n\n• Execute the downloaded file, then follow the instructions given by the installer\n\n•  Once installation is complete, click on the 'OK' button to continue.\n\n• Installation requires an Internet connection.",
+  "lacher": "You can drop now!",
+  "langue": "Language",
+  "locate": "Locate",
+  "locateFfmpeg": "Locate ffmpeg",
+  "moduleRequis": "Module required",
+  "moyenne": "Medium",
+  "nouvelleVersion": "A new version is available !",
+  "openExplorer": "Open in Explorer",
+  "openFinder": "Open in Finder",
+  "parametres": "Settings",
+  "parcourir": "Browse",
+  "pathErreur": "The {type} does not exist",
+  "personnalise": "Custom",
+  "pleaseWait": "Please wait",
+  "prets": "Your files are ready!",
+  "qualite": "Quality",
+  "redemarrer": "You must restart the application for this change to take effect.",
+  "repo": "GitHub repository",
+  "reset": "Reset",
+  "sortie": "Output directory",
+  "supprimer": "Delete originals",
+  "taille": "Size",
+  "telecharger": "Download",
+  "termine": "Done",
+  "toInstall": "• To install GhostScript, click ",
+  "tooltipGhostscript": "GhostScript lets you compress PDF files.",
+  "videos": "Videos"
+}
