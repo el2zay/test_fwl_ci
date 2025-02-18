@@ -1,12 +1,8 @@
-name: Build Flutter RPM
+name: Build and Upload Flutter RPM on Release
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -24,7 +20,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Flutter web
+      # Adaptez cette commande selon la plateforme ciblée (web, linux, etc.)
+      - name: Build Flutter (web)
         run: flutter build web --release
 
       - name: Install fpm
@@ -33,14 +30,25 @@ jobs:
           sudo apt-get install -y ruby ruby-dev build-essential
           sudo gem install --no-document fpm
 
-      - name: Create RPM package
+      - name: Prepare package directory
         run: |
           mkdir -p package/usr/share/my_flutter_app
           cp -r build/web/* package/usr/share/my_flutter_app/
-          fpm -s dir -t rpm -n my_flutter_app -v 1.0.0 -C package usr/share/my_flutter_app
 
-      - name: Upload RPM
-        uses: actions/upload-artifact@v3
+      - name: Create RPM package
+        run: |
+          fpm -s dir -t rpm -n my_flutter_app -v "${{ github.event.release.tag_name }}" -C package usr/share/my_flutter_app
+
+      - name: Find RPM file
+        id: find_rpm
+        run: echo "::set-output name=rpm_file::$(ls *.rpm)"
+
+      - name: Upload RPM to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: my_flutter_app-1.0.0.rpm
-          path: *.rpm
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ steps.find_rpm.outputs.rpm_file }}
+          asset_name: ${{ steps.find_rpm.outputs.rpm_file }}
+          asset_content_type: application/x-rpm
