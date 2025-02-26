@@ -1,0 +1,30 @@
+app: 
+  name: MonApplication # TODO: CHANGER - Remplace par le nom de ton application
+  icon: app/assets/icon.png # TODO: CHANGER - Chemin de ton icône
+
+  # Informations sur l'exécutable principal
+  exec: AppDir/monapplication # TODO: CHANGER - Remplace par le binaire de ton app
+
+  # Paramètres additionnels si nécessaires
+  args: []
+  categories: ["Utility"] # TODO: CHANGER - Choisir une catégorie correspondant à ton app
+  mime-types: []
+
+ingredients:
+  # Dossier où l'application compilée est stockée
+  script:
+    - mkdir -p AppDir/usr/bin
+    - cp -r build/linux/x64/release/bundle/* AppDir/ # TODO: CHANGER - Vérifie le bon chemin
+
+  # Liste des bibliothèques requises par l'application
+  runtime:
+    env:
+      PATH: "$APPDIR/usr/bin:$PATH"
+
+  # Ajouter des fichiers spécifiques si nécessaire
+  sources:
+    - path: build/linux/x64/release/bundle/ # TODO: CHANGER - Vérifie le chemin
+
+script:
+  - echo "Building AppImage..."
+  - chmod +x AppDir/monapplication # TODO: CHANGER - Assure-toi que ton binaire est exécutable
