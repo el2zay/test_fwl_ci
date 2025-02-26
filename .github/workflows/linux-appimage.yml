@@ -34,9 +34,9 @@ jobs:
         working-directory: ./
         run: flutter pub get
 
-      - name: Build generated files
-        working-directory: ./
-        run: flutter pub run build_runner build -d
+      # - name: Build generated files
+        # working-directory: ./
+       #  run: flutter pub run build_runner build -d
 
       - name: Upload updated lib files with generated code
         uses: actions/upload-artifact@v4
