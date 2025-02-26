@@ -86,7 +86,7 @@ jobs:
         working-directory: ./
         run: |
           mkdir -p AppDir/usr/share/icons/hicolor/64x64/apps
-          cp assets/img/logo-64.png AppDir/usr/share/icons/hicolor/64x64/apps/fileweightloss.png # TODO: CHANGER - Modifier le chemin des logos
+          cp assets/image/logo-64.png AppDir/usr/share/icons/hicolor/64x64/apps/fileweightloss.png # TODO: CHANGER - Modifier le chemin des logos
          
 
       - name: Build AppImage
