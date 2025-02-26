@@ -1,32 +1,26 @@
 version: 1
 
-app: 
-  name: FileWeightLoss
-  icon: ./assets/app_icon.png 
-
-  # Informations sur l'exécutable principal
-  exec: AppDir/fileweightloss # TODO: CHANGER - Remplace par le binaire de ton app
-
-  # Paramètres additionnels si nécessaires
-  args: []
-  categories: ["Utility"] # TODO: CHANGER - Choisir une catégorie correspondant à ton app
-  mime-types: []
-
-ingredients:
-  # Dossier où l'application compilée est stockée
-  script:
-    - mkdir -p AppDir/usr/bin
-    - cp -r build/linux/x64/release/bundle/* AppDir/ 
-
-  # Liste des bibliothèques requises par l'application
+AppDir:
+  path: ./AppDir 
+  app_info:
+    id: fileweightloss
+    name: FileWeightLoss
+    icon: ./assets/app_icon.png
+    version: 2.0.0
+    exec: fileweightloss 
+    categories: ["Utility"] 
   runtime:
     env:
       PATH: "$APPDIR/usr/bin:$PATH"
 
-  # Ajouter des fichiers spécifiques si nécessaire
+ingredients:
+  script:
+    - mkdir -p AppDir/usr/bin
+    - cp -r build/linux/x64/release/bundle/* AppDir/ 
+
   sources:
     - path: build/linux/x64/release/bundle/ 
 
 script:
   - echo "Building AppImage..."
-  - chmod +x AppDir/fileweightloss # TODO: CHANGER - Assure-toi que ton binaire est exécutable
+  - chmod +x AppDir/fileweightloss
