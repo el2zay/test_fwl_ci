@@ -11,11 +11,11 @@ script:
 AppDir:
   path: ./AppDir
   app_info:
-    id: com.el2zay.hello-fileweightloss
+    id: com.el2zay.fileweightloss
     name: File Weight Loss
     icon: logo-64.png
     version: latest
-    exec: hello_flutter
+    exec: fileweightloss
     exec_args: $@
   apt:
     arch: amd64
