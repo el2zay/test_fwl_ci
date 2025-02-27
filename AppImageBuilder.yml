@@ -1,48 +1,75 @@
 # appimage-builder recipe see https://appimage-builder.readthedocs.io for details
 version: 1
-script:
-  # Workaround for error in Github Actions (https://github.com/AppImageCrafters/appimage-builder/issues/271)
-  - which mksquashfs || apt install squashfs-tools
 
+
+script:
+ - which mksquashfs || apt install squashfs-tools
+ - rm -rf AppDir || true
+ - cp -r build/linux/x64/release/bundle AppDir
+ - mkdir -p AppDir/usr/share/icons/hicolor/64x64/apps/
+ - cp flutter-mark-square-64.png AppDir/usr/share/icons/hicolor/64x64/apps/
 AppDir:
-  path: AppDir
+  path: ./AppDir
   app_info:
-    id: com.el2zay.fileweightloss
-    name: FileWeightLoss
-    icon: assets/image/app_icon
-    version: 2.0.0
-    exec: fileweightloss
+    id: com.el2zay.hello-fileweightloss
+    name: File Weight Loss
+    icon: logo-64.png
+    version: latest
+    exec: hello_flutter
     exec_args: $@
   apt:
-    arch:
-      - amd64
+    arch: amd64
     allow_unauthenticated: true
     sources:
-      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy main restricted
-      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted
-      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy universe
-      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-updates universe
-      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy multiverse
-      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-updates multiverse
-      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse
-      - sourceline: deb http://security.ubuntu.com/ubuntu/ jammy-security main restricted
-      - sourceline: deb http://security.ubuntu.com/ubuntu/ jammy-security universe
-      - sourceline: deb http://security.ubuntu.com/ubuntu/ jammy-security multiverse
+    - sourceline: deb http://archive.ubuntu.com/ubuntu/ bionic main restricted
+    - sourceline: deb http://archive.ubuntu.com/ubuntu/ bionic-updates main restricted
+    - sourceline: deb http://archive.ubuntu.com/ubuntu/ bionic universe
+    - sourceline: deb http://archive.ubuntu.com/ubuntu/ bionic-updates universe
+    - sourceline: deb http://archive.ubuntu.com/ubuntu/ bionic multiverse
+    - sourceline: deb http://archive.ubuntu.com/ubuntu/ bionic-updates multiverse
+    - sourceline: deb http://archive.ubuntu.com/ubuntu/ bionic-backports main restricted universe multiverse
+    - sourceline: deb http://security.ubuntu.com/ubuntu bionic-security main restricted
+    - sourceline: deb http://security.ubuntu.com/ubuntu bionic-security universe
+    - sourceline: deb http://security.ubuntu.com/ubuntu bionic-security multiverse
     include:
-      - libayatana-appindicator3-1:amd64
-      - librsvg2-common:amd64
+    - libgtk-3-0
     exclude:
-      - adwaita-icon-theme:*
+    - humanity-icon-theme
+    - hicolor-icon-theme
+    - adwaita-icon-theme
+    - ubuntu-mono
+  files:
+    exclude:
+    - usr/share/man
+    - usr/share/doc/*/README.*
+    - usr/share/doc/*/changelog.*
+    - usr/share/doc/*/NEWS.*
+    - usr/share/doc/*/TODO.*
   runtime:
     env:
-      XDG_DATA_DIRS: '/usr/local/share/:/usr/share/:${XDG_DATA_DIRS}'
-  files:
-    include: []
-    exclude:
-      - usr/share/man
-      - usr/share/doc/*/README.*
-      - usr/share/doc/*/TODO.*
-
+      GIO_MODULE_DIR: $APPDIR/usr/lib/x86_64-linux-gnu/gio/modules/
+  test:
+    fedora:
+      image: appimagecrafters/tests-env:fedora-30
+      command: ./AppRun
+      use_host_x: true
+    debian:
+      image: appimagecrafters/tests-env:debian-stable
+      command: ./AppRun
+      use_host_x: true
+    arch:
+      image: appimagecrafters/tests-env:archlinux-latest
+      command: ./AppRun
+      use_host_x: true
+    centos:
+      image: appimagecrafters/tests-env:centos-7
+      command: ./AppRun
+      use_host_x: true
+    ubuntu:
+      image: appimagecrafters/tests-env:ubuntu-xenial
+      command: ./AppRun
+      use_host_x: true
 AppImage:
   arch: x86_64
   update-information: guess
+  sign-key: None
