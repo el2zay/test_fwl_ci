@@ -89,12 +89,6 @@ jobs:
           mkdir -p AppDir/usr/share/icons/hicolor/64x64/apps
           cp assets/image/app_icon AppDir/usr/share/icons/hicolor/64x64/apps/fileweightloss
 
-      - name: Debug - Vérification des fichiers
-        run: |
-          ls -R AppDir/usr/share/icons/hicolor/64x64/apps/
-          ls -R AppDir/usr/share/icons/
-          ls -R AppDir/usr/share/pixmaps/
-
       - name: Build AppImage
         uses: AppImageCrafters/build-appimage@57c3bc6963f870ce3be103117de5b5e33ffbaeb6
         with:
