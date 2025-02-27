@@ -48,7 +48,7 @@ jobs:
     - name: Save build Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: AppImage
+        name: AppImage-${{ matrix.ARCH }}
         path: './*.AppImage*'
     - name: Release AppImage
       uses: marvinpinto/action-automatic-releases@latest
