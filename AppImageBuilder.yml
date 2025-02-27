@@ -1,28 +1,48 @@
+# appimage-builder recipe see https://appimage-builder.readthedocs.io for details
 version: 1
 script:
   # Workaround for error in Github Actions (https://github.com/AppImageCrafters/appimage-builder/issues/271)
   - which mksquashfs || apt install squashfs-tools
 
 AppDir:
-  path: AppDir 
+  path: AppDir
   app_info:
     id: com.el2zay.fileweightloss
     name: FileWeightLoss
     icon: ./assets/app_icon.png
     version: 2.0.0
-    exec: fileweightloss 
+    exec: fileweightloss
+    exec_args: $@
+  apt:
+    arch:
+      - amd64
+    allow_unauthenticated: true
+    sources:
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy main restricted
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy universe
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-updates universe
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy multiverse
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-updates multiverse
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse
+      - sourceline: deb http://security.ubuntu.com/ubuntu/ jammy-security main restricted
+      - sourceline: deb http://security.ubuntu.com/ubuntu/ jammy-security universe
+      - sourceline: deb http://security.ubuntu.com/ubuntu/ jammy-security multiverse
+    include:
+      - libayatana-appindicator3-1:amd64
+      - librsvg2-common:amd64
+    exclude:
+      - adwaita-icon-theme:*
   runtime:
     env:
-      PATH: "$APPDIR/usr/bin:$PATH"
+      XDG_DATA_DIRS: '/usr/local/share/:/usr/share/:${XDG_DATA_DIRS}'
+  files:
+    include: []
+    exclude:
+      - usr/share/man
+      - usr/share/doc/*/README.*
+      - usr/share/doc/*/TODO.*
 
-ingredients:
-  script:
-    - mkdir -p AppDir/usr/bin
-    - cp -r build/linux/x64/release/bundle/* AppDir/ 
-
-  sources:
-    - path: build/linux/x64/release/bundle/ 
-
-script:
-  - echo "Building AppImage..."
-  - chmod +x AppDir/fileweightloss
+AppImage:
+  arch: x86_64
+  update-information: guess
