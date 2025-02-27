@@ -22,7 +22,7 @@ jobs:
         id: get_version
         working-directory: ./
         run: |
-          VERSION=$(sed -n 's/^version: \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' pubspec.yaml) # TODO: CHANGER - Vérifier si le fichier est bien ici
+          VERSION=$(sed -n 's/^version: \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' pubspec.yaml)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - uses: subosito/flutter-action@v2
@@ -34,15 +34,11 @@ jobs:
         working-directory: ./
         run: flutter pub get
 
-      # - name: Build generated files
-        # working-directory: ./
-       #  run: flutter pub run build_runner build -d
-
       - name: Upload updated lib files with generated code
         uses: actions/upload-artifact@v4
         with:
           name: lib-files
-          path: ./lib/* 
+          path: ./lib/*
 
   build_appimage:
     needs: build
@@ -62,7 +58,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang cmake libgtk-3-dev ninja-build \
           libayatana-appindicator3-dev libfuse2 keybinder-3.0
-          
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -82,20 +78,30 @@ jobs:
           mkdir AppDir
           cp -r build/linux/x64/release/bundle/* AppDir/
 
+      - name: Rename icon file
+        working-directory: ./
+        run: |
+          mv assets/image/app_icon.png assets/image/app_icon
+
       - name: Copy logo to AppDir
         working-directory: ./
         run: |
           mkdir -p AppDir/usr/share/icons/hicolor/64x64/apps
-          cp assets/image/logo-64.png AppDir/usr/share/icons/hicolor/64x64/apps/fileweightloss.png # TODO: CHANGER - Modifier le chemin des logos
-         
+          cp assets/image/app_icon AppDir/usr/share/icons/hicolor/64x64/apps/fileweightloss
+
+      - name: Debug - Vérification des fichiers
+        run: |
+          ls -R AppDir/usr/share/icons/hicolor/64x64/apps/
+          ls -R AppDir/usr/share/icons/
+          ls -R AppDir/usr/share/pixmaps/
 
       - name: Build AppImage
         uses: AppImageCrafters/build-appimage@57c3bc6963f870ce3be103117de5b5e33ffbaeb6
         with:
-          recipe: ./AppImageBuilder.yml 
+          recipe: ./AppImageBuilder.yml
 
       - name: Upload AppImage file
         uses: actions/upload-artifact@v4
         with:
           name: appimage-result
-          path: ./*.AppImage # TODO: CHANGER - Adapter le chemin de sortie de l'AppImage
+          path: ./*.AppImage
