@@ -9,7 +9,7 @@ AppDir:
   app_info:
     id: com.el2zay.fileweightloss
     name: FileWeightLoss
-    icon: assets/image/app_icon.png
+    icon: assets/image/app_icon
     version: 2.0.0
     exec: fileweightloss
     exec_args: $@
