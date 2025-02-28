@@ -23,12 +23,14 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
-    - name: Fix flutter SDK folder permission
-      run: git config --global --add safe.directory /tmp/flutter/--
-    - uses: subosito/flutter-action@v2
+    - name: Clone repository
+      uses: actions/checkout@v4
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
       with:
-        channel: stable
-        flutter-version: 3.19.0
+        channel: master
+        flutter-version: 3.24.0
+    - run: flutter --version
     - run: flutter upgrade
     - run: flutter config --enable-linux-desktop
     - name: "Install dependencies"
