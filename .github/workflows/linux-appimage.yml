@@ -31,7 +31,6 @@ jobs:
         channel: master
         flutter-version: 3.24.0
     - run: flutter --version
-    - run: flutter upgrade
     - run: flutter config --enable-linux-desktop
     - name: "Install dependencies"
       run: |
