@@ -46,7 +46,7 @@ jobs:
         sed -i "s/arch: x86_64/arch: ${{ matrix.ARCH }}/" ./AppImageBuilder.yml
 
     - name: Build AppImage
-      uses: docker://${{ matrix.APPIMAGE_BUILDER_IMAGE }}
+      uses: docker://appimagecrafters/appimage-builder:1.1.0 
       with:
         entrypoint: appimage-builder
         args: --recipe ./AppImageBuilder.yml --skip-test
