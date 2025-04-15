@@ -47,7 +47,13 @@ jobs:
       if: matrix.ARCH == 'arm64'
       run: |
         pip3 install appimage-builder
+        PKG_PATH=$(pip show appimage-builder | grep 'Location:' | cut -d' ' -f2)
+        find "$PKG_PATH" -name 'package.py' -exec sed -i \
+          -e 's/version.parse(self.version)/version.parse(self.version.replace("ubuntu", "+ubuntu"))/g' \
+          -e 's/version.parse(other.version)/version.parse(other.version.replace("ubuntu", "+ubuntu"))/g' \
+          {} \;
         appimage-builder --recipe ./AppImageBuilder.yml --skip-test
+
     - name: Upload Artifact
       uses: marvinpinto/action-automatic-releases@latest
       with:
