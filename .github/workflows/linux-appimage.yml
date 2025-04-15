@@ -35,30 +35,32 @@ jobs:
     - name: Patch AppImageBuilder for ARM
       if: matrix.ARCH == 'arm64'
       run: |
-        sed -i 's/x64/arm64/g' ./AppImageBuilder.yml
-        sed -i 's/arch: x86_64/arch: arm64/' ./AppImageBuilder.yml
+        sed -i 's/x64/arm64/g' test_fwl_ci/AppImageBuilder.yml
+        sed -i 's/arch: x86_64/arch: arm64/' test_fwl_ci/AppImageBuilder.yml
+        sed -i 's|runtime-url:.*|runtime-url: https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-aarch64|' test_fwl_ci/AppImageBuilder.yml
+        sed -i 's/64arm64/64x64/g' test_fwl_ci/AppImageBuilder.yml
     - name: Build AppImage (x64)
       if: matrix.ARCH == 'x64'
       uses: docker://appimagecrafters/appimage-builder:1.1.0
       with:
         entrypoint: appimage-builder
-        args: --recipe ./AppImageBuilder.yml --skip-test
+        args: --recipe test_fwl_ci/AppImageBuilder.yml --skip-test
     - name: Build AppImage (ARM)
       if: matrix.ARCH == 'arm64'
       run: |
         pip3 install appimage-builder
-        PKG_PATH=$(pip show appimage-builder | grep 'Location:' | cut -d' ' -f2)
-        find "$PKG_PATH" -name 'package.py' -exec sed -i \
+        find "$(pip show appimage-builder | grep 'Location:' | cut -d' ' -f2)" -name 'package.py' -exec sed -i \
           -e 's/version.parse(self.version)/version.parse(self.version.replace("ubuntu", "+ubuntu"))/g' \
-          -e 's/version.parse(other.version)/version.parse(other.version.replace("ubuntu", "+ubuntu"))/g' \
-          {} \;
-        appimage-builder --recipe ./AppImageBuilder.yml --skip-test
-
+          -e 's/version.parse(other.version)/version.parse(other.version.replace("ubuntu", "+ubuntu"))/g' {} \;
+        appimage-builder --recipe test_fwl_ci/AppImageBuilder.yml --skip-test
     - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: AppImage-${{ matrix.ARCH }}
+        path: './*.AppImage*'
+    - name: Release
       uses: marvinpinto/action-automatic-releases@latest
       with:
-         automatic_release_tag: '2.0.0'
-         prerelease: false
-         draft: true
-         files: './*.AppImage*'
-         repo_token: ${{ secrets.GITHUB_TOKEN }}
+        title: Continuous build
+        automatic_release_tag: '2.0.0'
+        files: './*.AppImage*'
