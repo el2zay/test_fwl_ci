@@ -49,13 +49,10 @@ jobs:
         pip3 install appimage-builder
         appimage-builder --recipe ./AppImageBuilder.yml --skip-test
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: AppImage-${{ matrix.ARCH }}
-        path: './*.AppImage*'
-    - name: Release
       uses: marvinpinto/action-automatic-releases@latest
       with:
-        title: Continuous build
-        automatic_release_tag: '2.0.0'
-        files: './*.AppImage*'
+         automatic_release_tag: '2.0.0'
+         prerelease: false
+         draft: true
+         files: './*.AppImage*'
+         repo_token: ${{ secrets.GITHUB_TOKEN }}
