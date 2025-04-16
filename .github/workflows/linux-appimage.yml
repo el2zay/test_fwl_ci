@@ -37,7 +37,7 @@ jobs:
     - name: Release AppImage
       uses: marvinpinto/action-automatic-releases@latest
       with:
-        title: FileWeightLoss ${{ github.ref_name }}
+        title: ${{ github.ref_name }}
         automatic_release_tag: ${{ github.ref_name }}
         prerelease: false
         draft: true
