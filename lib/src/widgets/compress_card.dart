@@ -1,5 +1,4 @@
-import 'package:cross_file/cross_file.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:fileweightloss/src/widgets/select.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
@@ -7,22 +6,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'dart:io';
 
-Widget buildCard(
-    BuildContext context,
-    int type,
-    bool isCompressing,
-    String? outputDir,
-    Function(String?) setStateOutputDir,
-    int quality,
-    Function(int) setStateQuality,
-    bool deleteOriginals,
-    Function(bool) setStateDeleteOriginals,
-    [int? format,
-    Function(int)? setStateFormat,
-    XFile? coverFile,
-    VoidCallback? pickCover,
-    int? fps,
-    Function(double)? setStateFps]) {
+Widget buildCard(BuildContext context, int type, bool isCompressing, String? outputDir, Function(String?) setStateOutputDir, int quality, Function(int) setStateQuality, bool deleteOriginals, Function(bool) setStateDeleteOriginals, [int? format, Function(int)? setStateFormat, XFile? coverFile, VoidCallback? pickCover, int? fps, Function(double)? setStateFps, bool? keepMetadata, Function(bool)? setStateKeepMetadata]) {
   return ShadCard(
     backgroundColor: Theme.of(context).cardColor,
     padding: const EdgeInsets.all(0),
@@ -42,17 +26,13 @@ Widget buildCard(
             onPressed: isCompressing
                 ? null
                 : () async {
-                    String? selectedDirectory =
-                        await FilePicker.platform.getDirectoryPath();
+                    String? selectedDirectory = await getDirectoryPath();
                     setStateOutputDir(selectedDirectory);
                   },
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.15),
+              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.15),
               child: Text(
-                (outputDir != null
-                    ? path.basename(outputDir)
-                    : AppLocalizations.of(context)!.parcourir),
+                (outputDir != null ? path.basename(outputDir) : AppLocalizations.of(context)!.parcourir),
                 style: TextStyle(fontSize: 14, color: Colors.blue[800]),
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.end,
@@ -63,26 +43,76 @@ Widget buildCard(
         ),
         const Divider(),
         ListTile(
-          dense: false,
-          title: Text(
-            AppLocalizations.of(context)!.qualite,
-            style: const TextStyle(fontSize: 13),
+          title: Padding(
+            padding: const EdgeInsets.only(left: 8, top: 4, right: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "${AppLocalizations.of(context)!.qualite}: ${type == 1 ? "$quality% – ${quality >= 80 ? AppLocalizations.of(context)!.haute : quality >= 60 ? AppLocalizations.of(context)!.bonne : quality >= 40 ? AppLocalizations.of(context)!.moyenne : AppLocalizations.of(context)!.faible}" : ""}",
+                  style: const TextStyle(fontSize: 13, fontFeatures: [
+                    FontFeature.tabularFigures(),
+                  ]),
+                ),
+                const SizedBox(height: 5),
+                if (type == 1) ...[
+                  ShadSlider(
+                    initialValue: 70,
+                    divisions: 89,
+                    min: 1,
+                    max: 90,
+                    trackHeight: 2,
+                    thumbRadius: 8,
+                    enabled: !isCompressing,
+                    onChanged: !isCompressing
+                        ? (value) {
+                            setStateQuality(value.toInt());
+                          }
+                        : null,
+                  ),
+                  const Divider(),
+                  ListTile(
+                    dense: true,
+                    visualDensity: const VisualDensity(vertical: -4),
+                    title: Text(
+                      AppLocalizations.of(context)!.keepMetadata,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: Transform.scale(
+                      scale: Platform.isMacOS ? 0.70 : 0.75,
+                      child: Switch.adaptive(
+                        value: keepMetadata!,
+                        thumbColor: WidgetStateProperty.resolveWith((states) => Colors.black),
+                        activeColor: Colors.white,
+                        activeTrackColor: Colors.white,
+                        onChanged: (value) {
+                          if (isCompressing) return;
+                          setStateKeepMetadata!(value);
+                        },
+                      ),
+                    ),
+                    contentPadding: type != 1 ? const EdgeInsets.only(top: 4, bottom: 0, right: 4) : const EdgeInsets.all(0),
+                  ),
+                ],
+              ],
+            ),
           ),
-          trailing: buildSelect(
-              context,
-              isCompressing,
-              {
-                if (type == 0) "Original": -1,
-                AppLocalizations.of(context)!.haute: 0,
-                AppLocalizations.of(context)!.bonne: 1,
-                AppLocalizations.of(context)!.moyenne: 2,
-                AppLocalizations.of(context)!.faible: 3,
-              },
-              quality, (value) {
-            setStateQuality(value);
-          }),
-          contentPadding: EdgeInsets.only(
-              top: 0, bottom: 0, left: 8, right: isCompressing ? 14 : 4),
+          trailing: type != 1
+              ? buildSelect(
+                  context,
+                  isCompressing,
+                  {
+                    if (type == 0) "Original": -1,
+                    AppLocalizations.of(context)!.haute: 0,
+                    AppLocalizations.of(context)!.bonne: 1,
+                    AppLocalizations.of(context)!.moyenne: 2,
+                    AppLocalizations.of(context)!.faible: 3,
+                  },
+                  quality, (value) {
+                  setStateQuality(value);
+                })
+              : null,
+          contentPadding: const EdgeInsets.all(0),
         ),
         const Divider(),
         if (type == 0) ...[
@@ -104,8 +134,7 @@ Widget buildCard(
                 (format != null) ? format : -1, (value) {
               setStateFormat!(value);
             }),
-            contentPadding: EdgeInsets.only(
-                top: 0, bottom: 0, left: 8, right: isCompressing ? 14 : 4),
+            contentPadding: const EdgeInsets.only(top: 0, bottom: 0, left: 8),
           ),
           if (format == 1) ...[
             const Divider(),
@@ -116,17 +145,13 @@ Widget buildCard(
                 style: TextStyle(fontSize: 13),
               ),
               trailing: SizedBox(
-                width: coverFile != null
-                    ? MediaQuery.of(context).size.width * 0.2
-                    : null,
+                width: coverFile != null ? MediaQuery.of(context).size.width * 0.2 : null,
                 child: ShadButton.ghost(
                   hoverBackgroundColor: Colors.transparent,
                   enabled: !isCompressing,
                   onPressed: pickCover,
                   child: Text(
-                    coverFile == null
-                        ? AppLocalizations.of(context)!.parcourir
-                        : coverFile.name,
+                    coverFile == null ? AppLocalizations.of(context)!.parcourir : coverFile.name,
                     style: TextStyle(fontSize: 14, color: Colors.blue[800]),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -178,8 +203,7 @@ Widget buildCard(
             scale: Platform.isMacOS ? 0.70 : 0.75,
             child: Switch.adaptive(
               value: deleteOriginals,
-              thumbColor:
-                  WidgetStateProperty.resolveWith((states) => Colors.black),
+              thumbColor: WidgetStateProperty.resolveWith((states) => Colors.black),
               activeColor: Colors.white,
               activeTrackColor: Colors.white,
               onChanged: (value) {

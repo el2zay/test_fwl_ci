@@ -13,9 +13,18 @@ void openInExplorer(String path) async {
       path
     ]);
   } else if (Platform.isLinux) {
-    await Process.run("xdg-open", [
-      path
-    ]);
+    // Essaie d'abord avec nautilus (GNOME)
+    try {
+      await Process.run("nautilus", [
+        "--select",
+        path
+      ]);
+    } catch (e) {
+      await Process.run("dolphin", [
+        "--select",
+        path
+      ]);
+    }
   }
 }
 

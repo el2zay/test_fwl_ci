@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dotted_border/dotted_border.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:fileweightloss/pages/settings.dart';
 import 'package:fileweightloss/src/utils/formats.dart';
 import 'package:fileweightloss/src/utils/common_utils.dart';
@@ -16,7 +15,6 @@ import 'package:fileweightloss/src/widgets/dialog.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:desktop_drop/desktop_drop.dart';
-import 'package:cross_file/cross_file.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:get_storage/get_storage.dart';
@@ -28,6 +26,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:file_selector/file_selector.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -43,8 +42,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
   int totalOriginalSize = 0;
   int totalCompressedSize = 0;
   bool dragging = false;
-  FilePickerResult? result;
+  List<XFile>? result = [];
   bool deleteOriginals = false;
+  bool keepMetadata = true;
   String? outputDir;
   bool compressed = false;
   bool isCompressing = false;
@@ -52,7 +52,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
   bool canceled = false;
   Map<int, int> quality = {
     0: 1,
-    1: 1,
+    1: 70,
     2: 1,
   };
   int format = -1;
@@ -61,8 +61,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
   int notifId = 0;
   XFile? coverFile;
   final box = GetStorage();
+  String name = "";
 
-  HotKey hotKey = HotKey(
+  HotKey settingsHotKey = HotKey(
     key: PhysicalKeyboardKey.comma,
     modifiers: [
       Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control,
@@ -70,7 +71,14 @@ class _HomePageState extends State<HomePage> with WindowListener {
     scope: HotKeyScope.inapp,
   );
 
-  @override
+  final HotKey quitHotKey = HotKey(
+    key: PhysicalKeyboardKey.keyQ,
+    modifiers: [
+      Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control,
+    ],
+    scope: HotKeyScope.inapp,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -82,18 +90,23 @@ class _HomePageState extends State<HomePage> with WindowListener {
     }
 
     hotKeyManager.register(
-      hotKey,
+      quitHotKey,
+      keyDownHandler: (hotKey) async {
+        await onWindowClose();
+      },
+    );
+
+    hotKeyManager.register(
+      settingsHotKey,
       keyDownHandler: (hotKey) {
         if (!isSettingsPage) {
           showShadDialog(
             context: context,
             builder: (context) {
               return Center(
-                child: Container(
-                  constraints: const BoxConstraints(
-                    maxWidth: 600,
-                    maxHeight: 500,
-                  ),
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.75,
+                  height: MediaQuery.of(context).size.height * 0.825,
                   child: const SettingsPage(),
                 ),
               );
@@ -102,7 +115,23 @@ class _HomePageState extends State<HomePage> with WindowListener {
         }
       },
     );
+
     if (box.read("checkUpdates") == true) _checkUpdates();
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    progressNotifier.dispose();
+    super.dispose();
+  }
+
+// Pour que ce soit a jour dans le initstate
+  void setCompressing(bool value) {
+    setState(() {
+      isCompressing = value;
+      windowManager.setPreventClose(value); // Met à jour preventClose en fonction de isCompressing
+    });
   }
 
   Future<void> _checkUpdates() async {
@@ -132,10 +161,10 @@ class _HomePageState extends State<HomePage> with WindowListener {
                     onPressed: () {
                       openInBrowser(
                         Platform.isWindows
-                            ? "https://github.com/el2zay/fileweightloss/releases/download/1.0.0/File.Weight.Loss.exe"
+                            ? "https://github.com/el2zay/fileweightloss/releases/latest/download/File.Weight.Loss.exe" // TODO Lien microsoft store
                             : Platform.isMacOS
-                                ? "https://github.com/el2zay/fileweightloss/releases/download/1.0.0/File.Weight.Loss.dmg"
-                                : "", // TODO ajouter le lien pour Linux
+                                ? "https://github.com/el2zay/fileweightloss/releases/latest/download/File.Weight.Loss.dmg"
+                                : "https://github.com/el2zay/fileweightloss/releases/latest/",
                       );
                     },
                     child: Text(AppLocalizations.of(context)!.telecharger),
@@ -150,10 +179,37 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   @override
-  void dispose() {
-    windowManager.removeListener(this);
-    progressNotifier.dispose();
-    super.dispose();
+  Future<void> onWindowClose() async {
+    bool isPreventClose = await windowManager.isPreventClose();
+    if (isPreventClose && isCompressing) {
+      showShadDialog(
+          context: context,
+          builder: (context) {
+            return Center(
+              child: ShadDialog(
+                title: Text(AppLocalizations.of(context)!.quitterDemande),
+                description: Text(AppLocalizations.of(context)!.quitterDescription),
+                actions: [
+                  ShadButton.secondary(
+                    onPressed: () {
+                      windowManager.setPreventClose(false);
+                      windowManager.close();
+                    },
+                    child: Text(AppLocalizations.of(context)!.quitter),
+                  ),
+                  ShadButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: Text(AppLocalizations.of(context)!.annuler),
+                  ),
+                ],
+              ),
+            );
+          });
+    } else {
+      windowManager.destroy();
+    }
   }
 
   Future getUpdates() async {
@@ -194,28 +250,28 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<void> pickFile() async {
-    result = await FilePicker.platform.pickFiles(
-      allowCompression: false,
-      allowMultiple: true,
-      allowedExtensions: formats,
-      type: FileType.custom,
-    );
-    if (result == null) return;
+    final List<XFile> files = await openFiles(acceptedTypeGroups: <XTypeGroup>[
+      XTypeGroup(
+        label: 'custom',
+        extensions: getFormats(),
+      ),
+    ]);
 
     List<XFile> newErrors = [];
     Map<XFile, List<dynamic>> newList = {};
 
-    for (var file in result!.files) {
-      if (!formats.contains(file.name.split(".").last)) {
-        newErrors.add(XFile(file.path ?? ""));
+    for (var file in files) {
+      if (!getFormats().contains(file.name.split(".").last)) {
+        newErrors.add(file);
         continue;
       } else {
-        final xFile = XFile(file.path ?? "");
+        final fileSize = File(file.path).lengthSync();
+        final xFile = XFile(file.path);
         if (dict.keys.any((existingFile) => existingFile.path == xFile.path)) {
           continue;
         }
         newList[xFile] = [
-          file.size,
+          fileSize,
           0,
           ValueNotifier<double>(0.0)
         ];
@@ -232,17 +288,25 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   void pickCover() async {
-    result = await FilePicker.platform.pickFiles(
-      allowCompression: false,
-      allowMultiple: false,
-      type: FileType.image,
+    // Pick une image pour la couverture
+    result = await openFiles(
+      acceptedTypeGroups: <XTypeGroup>[
+        const XTypeGroup(
+          label: 'images',
+          extensions: [
+            'jpg',
+            'jpeg',
+            'png',
+          ],
+        ),
+      ],
     );
 
     setState(() {
       if (result == null) {
         coverFile = null;
       } else {
-        coverFile = XFile(result!.files.first.path ?? "");
+        coverFile = result!.first;
       }
     });
   }
@@ -267,11 +331,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
                             context: context,
                             builder: (context) {
                               return Center(
-                                child: Container(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 600,
-                                    maxHeight: 500,
-                                  ),
+                                child: SizedBox(
+                                  width: MediaQuery.of(context).size.width * 0.75,
+                                  height: MediaQuery.of(context).size.height * 0.825,
                                   child: const SettingsPage(),
                                 ),
                               );
@@ -302,6 +364,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
                           padding: const EdgeInsets.only(right: 10),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               ShadTabs<int>(
                                 value: tabValue,
@@ -313,22 +376,26 @@ class _HomePageState extends State<HomePage> with WindowListener {
                                 tabs: [
                                   ShadTab(
                                     value: 0,
-                                    content: buildCard(
-                                      context,
-                                      0,
-                                      isCompressing,
-                                      outputDir,
-                                      (value) => setState(() => outputDir = value),
-                                      quality[0]!,
-                                      (value) => setState(() => quality[0] = value),
-                                      deleteOriginals,
-                                      (value) => setState(() => deleteOriginals = value),
-                                      format,
-                                      (value) => setState(() => format = value),
-                                      coverFile,
-                                      pickCover,
-                                      fps,
-                                      (value) => setState(() => fps = value.toInt()),
+                                    content: Column(
+                                      children: [
+                                        buildCard(
+                                          context,
+                                          0,
+                                          isCompressing,
+                                          outputDir,
+                                          (value) => setState(() => outputDir = value),
+                                          quality[0]!,
+                                          (value) => setState(() => quality[0] = value),
+                                          deleteOriginals,
+                                          (value) => setState(() => deleteOriginals = value),
+                                          format,
+                                          (value) => setState(() => format = value),
+                                          coverFile,
+                                          pickCover,
+                                          fps,
+                                          (value) => setState(() => fps = value.toInt()),
+                                        ),
+                                      ],
                                     ),
                                     onPressed: () => setState(() => tabValue = 0),
                                     child: Text(AppLocalizations.of(context)!.videos),
@@ -345,6 +412,14 @@ class _HomePageState extends State<HomePage> with WindowListener {
                                       (value) => setState(() => quality[1] = value),
                                       deleteOriginals,
                                       (value) => setState(() => deleteOriginals = value),
+                                      null,
+                                      null,
+                                      null,
+                                      null,
+                                      null,
+                                      null,
+                                      keepMetadata,
+                                      (value) => setState(() => keepMetadata = value),
                                     ),
                                     onPressed: () => setState(() => tabValue = 1),
                                     child: const Text("Images"),
@@ -367,7 +442,22 @@ class _HomePageState extends State<HomePage> with WindowListener {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 30),
+                              if (getMagickPath() == "" && tabValue == 1 || getGsPath() == "" && tabValue == 2) ...[
+                                const SizedBox(height: 15),
+                                Text(
+                                  (tabValue == 1)
+                                      ? AppLocalizations.of(context)!.preventMagick
+                                      : (tabValue == 2)
+                                          ? AppLocalizations.of(context)!.preventGs
+                                          : "",
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 15),
+                              ] else
+                                const SizedBox(height: 30),
                               ShadButton.outline(
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                                 enabled: !(isCompressing || dict.isEmpty || outputDir == null || (quality[0] == -1 && format == -1)),
@@ -375,7 +465,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
                                     ? null
                                     : () async {
                                         setState(() {
-                                          isCompressing = true;
+                                          setCompressing(true);
                                         });
                                         final files = List.from(dict.keys);
                                         for (var file in files) {
@@ -387,7 +477,10 @@ class _HomePageState extends State<HomePage> with WindowListener {
                                           final path = file.path;
                                           final fileName = file.name;
                                           final lastDotIndex = fileName.lastIndexOf('.');
-                                          final name = (lastDotIndex == -1) ? fileName : fileName.substring(0, lastDotIndex);
+
+                                          name = (lastDotIndex == -1) ? fileName : fileName.substring(0, lastDotIndex) + "${box.read("changeOutputName") == true && quality[0] != -1 ? box.read("outputName") : ""}";
+                                          final formatsList = getFormats().sublist(getFormats().length - 10, getFormats().length);
+
                                           if (format == 0) {
                                             ext = "mp4";
                                           } else if (format == 1) {
@@ -407,19 +500,26 @@ class _HomePageState extends State<HomePage> with WindowListener {
                                                 dict[file]![2].value = progress;
                                               });
                                             });
-                                          }
-                                          compressedSize = await compressMedia(path, name, ext, size, quality[0]!, fps, deleteOriginals, outputDir!, coverFile?.path, onProgress: (progress) {
-                                            setState(() {
-                                              dict[file]![2].value = progress;
+                                          } else if (formatsList.contains(ext)) {
+                                            compressedSize = await compressImage(path, name, size, outputDir!, quality[1]!, keepMetadata, onProgress: (progress) {
+                                              setState(() {
+                                                dict[file]![2].value = progress;
+                                              });
                                             });
-                                          });
+                                          } else {
+                                            compressedSize = await compressMedia(path, name, ext, size, quality[0]!, fps, deleteOriginals, outputDir!, coverFile?.path, onProgress: (progress) {
+                                              setState(() {
+                                                dict[file]![2].value = progress;
+                                              });
+                                            });
+                                          }
                                           if (compressedSize == -1) {
                                             errors.add(file);
                                             continue;
                                           }
                                           totalCompressedSize += compressedSize;
                                           box.write("totalFiles", box.read("totalFiles") + 1);
-                                          dict[file]![1] = 2;
+                                          dict[file]?[1] = 2;
                                         }
                                         setState(() {
                                           if (!canceled) compressed = true;
@@ -484,19 +584,27 @@ class _HomePageState extends State<HomePage> with WindowListener {
       child: DropTarget(
         onDragDone: (detail) async {
           for (var file in detail.files) {
-            if (!formats.contains(file.name.split(".").last)) {
+            if (!getFormats().contains(file.name.split(".").last)) {
               errors.add(XFile(file.path));
               continue;
             } else {
               final fileSize = File(file.path).lengthSync();
               final xFile = XFile(file.path);
+              final ext = file.name.split(".").last;
+
               if (dict.keys.any((existingFile) => existingFile.path == xFile.path)) {
                 continue;
               }
+              // Récupérer l'extension du fichier
               dict[XFile(file.path)] = [
                 fileSize,
                 0,
-                ValueNotifier<double>(0.0)
+                ValueNotifier<double>(0.0),
+                ext == "pdf"
+                    ? 2
+                    : getFormats().sublist(getFormats().length - 10, getFormats().length).contains(ext)
+                        ? 1
+                        : 0
               ];
             }
           }
@@ -594,6 +702,13 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Widget notEmptyList() {
+    final fileExt = format == 0
+        ? "mp4"
+        : format == 1
+            ? "mp3"
+            : format == 2
+                ? "gif"
+                : name.split('.').last;
     return Column(
       children: [
         Expanded(
@@ -667,12 +782,18 @@ class _HomePageState extends State<HomePage> with WindowListener {
                             dict.remove(file);
                             setState(() {});
                           } else if (compressionState == 1) {
-                            cancelCompression();
+                            cancelCompression(
+                                dict[file]![3] == 0
+                                    ? ffmpegPath
+                                    : dict[file]![3] == 1
+                                        ? magickPath
+                                        : gsPath,
+                                "$outputDir/$name.$fileExt");
                             if (dict.length == 1) {
                               setState(() {
                                 canceled = true;
                                 dict.clear();
-                                isCompressing = false;
+                                setCompressing(false);
                               });
                             } else {
                               dict[file]![1] = 2;
@@ -747,7 +868,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
                     ffmpegPath = getFFmpegPath();
                     setState(() {
                       compressed = false;
-                      isCompressing = false;
+                      setCompressing(false);
                       dict.clear();
                       errors.clear();
                     });
@@ -774,9 +895,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
                             ? "gif"
                             : fileName.split('.').last;
                 final lastDotIndex = fileName.lastIndexOf('.');
-                final name = (lastDotIndex == -1) ? fileName : fileName.substring(0, lastDotIndex);
-                // TODO modifier cela
-                openInExplorer("$outputDir/$name.${(quality[0] != -1) ? "compressed." : ""}$fileExt");
+                final name = (lastDotIndex == -1) ? fileName : "${fileName.substring(0, lastDotIndex)}${box.read("changeOutputName") == true && quality[0] != -1 ? box.read("outputName") : ""}";
+                openInExplorer("$outputDir/$name.$fileExt");
               }
             },
             child: Text(Platform.isMacOS ? AppLocalizations.of(context)!.openFinder : AppLocalizations.of(context)!.openExplorer),

@@ -12,8 +12,9 @@ import 'dart:io';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:window_manager/window_manager.dart';
 
-String ffmpegPath = "";
+var ffmpegPath = "";
 String gsPath = "";
+String magickPath = "";
 bool installingFFmpeg = false;
 bool isSettingsPage = false;
 
@@ -33,26 +34,35 @@ void main() async {
   }
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  const initializationSettingsMacOS = DarwinInitializationSettings(
-    requestAlertPermission: true,
-    requestBadgePermission: true,
-    requestSoundPermission: true,
-  );
 
-  const InitializationSettings initializationSettings = InitializationSettings(
-    macOS: initializationSettingsMacOS,
+  InitializationSettings initializationSettings = InitializationSettings(
+    macOS: const DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    ),
+    linux: LinuxInitializationSettings(defaultActionName: 'Open', defaultIcon: AssetsLinuxIcon("assets/app_icon.png")),
   );
 
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
   HttpOverrides.global = MyHttpOverrides();
+  final box = GetStorage();
+
+  box.writeIfNull("ffmpegPath", "");
+  box.writeIfNull("gsPath", "");
+  box.writeIfNull("magickPath", "");
+
   ffmpegPath = getFFmpegPath();
   gsPath = getGsPath();
+  magickPath = getMagickPath();
 
-  final box = GetStorage();
   box.writeIfNull("totalFiles", 0);
   box.writeIfNull("totalSize", 0);
   box.writeIfNull("checkUpdates", true);
+  box.writeIfNull("changeOutputName", true);
+  box.writeIfNull("outputName", ".compressed");
+
   runApp(const MainApp());
 
   await Future.delayed(Duration.zero, () async {
@@ -137,12 +147,36 @@ Future<bool> installFfmpeg() async {
   }
 }
 
-String getFFmpegPath() {
+String getFFmpegPath([bool? noBox]) {
   final box = GetStorage();
-  if (box.read("ffmpegPath") != null && File(box.read('ffmpegPath')).existsSync()) {
+
+  if (box.read("ffmpegPath") != "" && File(box.read('ffmpegPath')).existsSync() || noBox == false) {
     return box.read('ffmpegPath');
   } else {
-    box.remove('ffmpegPath');
+    box.write("ffmpegPath", "");
+  }
+
+  try {
+    final result = Platform.isWindows
+        ? Process.runSync("powershell", [
+            "(get-command ffmpeg.exe).Path"
+          ])
+        : Process.runSync('which', [
+            'ffmpeg'
+          ]);
+    if (Platform.isWindows) {
+      if (result.stdout.trim().isNotEmpty && !result.stdout.contains('CommandNotFoundException')) {
+        final path = result.stdout.trim();
+        box.write('gsPath', path);
+        return path;
+      }
+    } else if (result.exitCode == 0) {
+      final path = result.stdout.trim();
+      box.write('ffmpegPath', path);
+      return path;
+    }
+  } catch (e) {
+    debugPrint('Erreur lors de la recherche de Ffmpeg');
   }
 
   File ffmpegFile;
@@ -163,26 +197,65 @@ String getFFmpegPath() {
 
 String getGsPath([bool? noBox]) {
   final box = GetStorage();
-  if (box.read("gsPath") != null && File(box.read('gsPath')).existsSync() || noBox == false) {
+  if (box.read("gsPath") != "" && File(box.read('gsPath')).existsSync() || noBox == false) {
     return box.read('gsPath');
   } else {
-    box.remove('gsPath');
-
+    box.write("gsPath", "");
     try {
       final result = Platform.isWindows
           ? Process.runSync("powershell", [
-              "(get-command gswin64c.exe).Path"
+              "(get-command gswin64c.exe -ErrorAction SilentlyContinue).Path"
             ])
           : Process.runSync('which', [
               'gs'
             ]);
-      if (result.exitCode == 0) {
+
+      if (Platform.isWindows) {
+        if (result.stdout.trim().isNotEmpty && !result.stdout.contains('CommandNotFoundException')) {
+          final path = result.stdout.trim();
+          box.write('gsPath', path);
+          return path;
+        }
+      } else if (result.exitCode == 0) {
         final path = result.stdout.trim();
         box.write('gsPath', path);
         return path;
       }
     } catch (e) {
       debugPrint('Erreur lors de la recherche de Ghostscript');
+    }
+  }
+  return "";
+}
+
+String getMagickPath([bool? noBox]) {
+  final box = GetStorage();
+  if (box.read("magickPath") != "" && File(box.read('magickPath')).existsSync() || noBox == false) {
+    return box.read('magickPath');
+  } else {
+    box.write("magickPath", "");
+    try {
+      final result = Platform.isWindows
+          ? Process.runSync("powershell", [
+              "(get-command magick.exe -ErrorAction SilentlyContinue).Path"
+            ])
+          : Process.runSync('which', [
+              'magick'
+            ]);
+
+      if (Platform.isWindows) {
+        if (result.stdout.trim().isNotEmpty && !result.stdout.contains('CommandNotFoundException')) {
+          final path = result.stdout.trim();
+          box.write('magickPath', path);
+          return path;
+        }
+      } else if (result.exitCode == 0) {
+        final path = result.stdout.trim();
+        box.write('magickPath', path);
+        return path;
+      }
+    } catch (e) {
+      debugPrint('Erreur lors de la recherche de ImageMagick');
     }
   }
   return "";

@@ -90,7 +90,7 @@ Future<int> compressMedia(String filePath, String name, String fileExt, int orig
         "${parameterB}k",
       ],
       "-y",
-      "$outputDir/$name.compressed.$fileExt",
+      "$outputDir/$name.$fileExt",
     ]);
   }
 
@@ -137,7 +137,7 @@ Future<int> compressMedia(String filePath, String name, String fileExt, int orig
     return -1;
   }
 
-  File compressedFile = File("$outputDir/$name.${(quality != -1) ? "compressed." : ""}$fileExt");
+  File compressedFile = File("$outputDir/$name.$fileExt");
   if (await compressedFile.exists()) {
     try {
       compressedFile.lengthSync();
@@ -165,13 +165,6 @@ Future<int> compressMedia(String filePath, String name, String fileExt, int orig
   return fileSize;
 }
 
-Future<void> cancelCompression() async {
-  await Process.run('pkill', [
-    'ffmpeg'
-  ]);
-  progressNotifier.value = 0;
-}
-
 Future<int> compressPdf(String filePath, String name, int size, String outputDir, int quality, {Function(double)? onProgress}) async {
   int page = 0;
   String? parameterQuality;
@@ -188,7 +181,7 @@ Future<int> compressPdf(String filePath, String name, int size, String outputDir
   final filePathForCmd = filePath.replaceAll("\\", "/");
 
   List<String> cmdArgsPage = [
-    "gswin64c.exe",
+    gsPath,
     "-q",
     "-dNOSAFER",
     "-dNODISPLAY",
@@ -199,10 +192,8 @@ Future<int> compressPdf(String filePath, String name, int size, String outputDir
 
   int totalPages = 0;
   var processPages = await Process.start(cmdArgsPage[0], cmdArgsPage.sublist(1));
-  debugPrint("Commande Ghostscript: ${cmdArgsPage.join(" ")}");
   processPages.stdout.transform(utf8.decoder).listen((output) {
     String trimmedOutput = output.trim();
-    debugPrint("Output de Ghostscript: $trimmedOutput");
     if (RegExp(r'^\d+$').hasMatch(trimmedOutput)) {
       totalPages = int.parse(trimmedOutput);
     } else {
@@ -217,7 +208,7 @@ Future<int> compressPdf(String filePath, String name, int size, String outputDir
     "-dPDFSETTINGS=/$parameterQuality",
     "-dNOPAUSE",
     "-dBATCH",
-    "-sOutputFile=$outputDir/$name.compressed.pdf",
+    "-sOutputFile=$outputDir/$name.pdf",
     filePath,
   ];
 
@@ -235,7 +226,7 @@ Future<int> compressPdf(String filePath, String name, int size, String outputDir
 
   await process.exitCode;
 
-  File compressedFile = File("$outputDir/$name.compressed.pdf");
+  File compressedFile = File("$outputDir/$name.pdf");
   if (await compressedFile.exists()) {
     try {
       compressedFile.lengthSync();
@@ -248,4 +239,77 @@ Future<int> compressPdf(String filePath, String name, int size, String outputDir
   }
 
   return compressedFile.lengthSync();
+}
+
+Future<int> compressImage(String filePath, String name, int size, String outputDir, int quality, bool keepMetadata, {Function(double)? onProgress}) async {
+  int progress = 0;
+  List<String> cmdArgs = [
+    magickPath,
+    "convert",
+    "-monitor",
+    filePath,
+    if (!keepMetadata) ...[
+      "-strip",
+    ],
+    "-quality",
+    "$quality%",
+    "$outputDir/$name.jpg",
+  ];
+
+  try {
+    var process = await Process.start(cmdArgs[0], cmdArgs.sublist(1));
+    int oldNumber = -1;
+    process.stderr.transform(utf8.decoder).listen(
+      (output) {
+        if (output.contains("%")) {
+          var regex = RegExp(r'(\d+)%');
+          var match = regex.firstMatch(output);
+          debugPrint("Match: ${match?.group(1)}");
+          if (match != null) {
+            progress++;
+            if (progress != oldNumber) {
+              oldNumber = progress;
+              progressNotifier.value = progress / 100;
+              if (onProgress != null) {
+                onProgress(progressNotifier.value);
+              }
+            }
+          }
+        }
+      },
+    );
+
+    await process.exitCode;
+
+    File compressedFile = File("$outputDir/$name.jpg");
+    if (await compressedFile.exists()) {
+      try {
+        compressedFile.lengthSync();
+      } catch (e) {
+        debugPrint('Error retrieving file size: $e');
+      }
+    } else {
+      debugPrint('Compressed file not found: ${compressedFile.path}');
+      return -1;
+    }
+
+    return compressedFile.lengthSync();
+  } catch (e) {
+    debugPrint('Error starting process: $e');
+    return -1;
+  }
+}
+
+Future<void> cancelCompression(path, file) async {
+  await Process.run(Platform.isWindows ? 'taskkill' : 'pkill', [
+    '-f', // TODO : vérifier si c'est nécessaire pour windows
+    path,
+  ]);
+
+  // File compressedFile = File(file);
+  // if (await compressedFile.exists()) {
+  //   print("ici 1");
+  //   compressedFile.delete();
+  // }
+  progressNotifier.value = 0;
 }

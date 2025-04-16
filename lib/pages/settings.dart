@@ -1,12 +1,13 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:fileweightloss/main.dart';
 import 'package:fileweightloss/src/utils/common_utils.dart';
 import 'package:fileweightloss/src/widgets/dialog.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -21,7 +22,9 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _ffmpegController = TextEditingController(text: getFFmpegPath());
   final _gsController = TextEditingController(text: getGsPath());
+  final _magickController = TextEditingController(text: getMagickPath());
   final _defaultOutputController = TextEditingController(text: GetStorage().read("defaultOutputPath"));
+  final _outputNameController = TextEditingController(text: GetStorage().read("outputName"));
   final _formKey = GlobalKey<ShadFormState>();
   final box = GetStorage();
   int showFinalMessage = 0; // 0 = No, 1 = Success, 2 = Error
@@ -44,6 +47,47 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
+  void installer() async {
+    await Process.run('tar', [
+      'xvzf',
+      '\$HOME/ImageMagick-x86_64-apple-darwin20.1.0.tar',
+    ]);
+
+    await Process.run(
+      "export",
+      [
+        'MAGICK_HOME="\$HOME/ImageMagick-7.0.10"'
+      ],
+    );
+
+    await Process.run(
+      "export",
+      [
+        'PATH="\$MAGICK_HOME/bin:\$PATH"'
+      ],
+    );
+
+    await Process.run(
+      "export",
+      [
+        ' DYLD_LIBRARY_PATH="\$MAGICK_HOME/lib/"'
+      ],
+    );
+
+    final result = await Process.run(
+      'convert',
+      [
+        '-version'
+      ],
+    );
+
+    if (result.exitCode == 0) {
+      print('ImageMagick installed successfully');
+    } else {
+      print('Error installing ImageMagick: ${result.stderr}');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var currentLocale = getLocale(View.of(context).platformDispatcher.locale, WidgetsBinding.instance.platformDispatcher.locales);
@@ -57,7 +101,7 @@ class _SettingsPageState extends State<SettingsPage> {
           focusColor: Colors.transparent,
           hoverColor: Colors.transparent,
           splashColor: Colors.transparent,
-          icon: const Icon(Icons.close),
+          icon: const Icon(LucideIcons.x, size: 20),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -76,7 +120,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 if (value!.isEmpty) {
                   return AppLocalizations.of(context)!.cheminVide;
                 } else if (!File(value).existsSync()) {
-                  return AppLocalizations.of(context)!.pathErreur("fichier");
+                  return AppLocalizations.of(context)!.filePathError;
                 }
                 return null;
               },
@@ -94,7 +138,7 @@ class _SettingsPageState extends State<SettingsPage> {
               "gsPath",
               (value) {
                 if (value!.isNotEmpty && !File(value).existsSync()) {
-                  return AppLocalizations.of(context)!.pathErreur("fichier");
+                  return AppLocalizations.of(context)!.filePathError;
                 }
                 return null;
               },
@@ -106,79 +150,106 @@ class _SettingsPageState extends State<SettingsPage> {
                 showShadDialog(
                   context: context,
                   builder: (context) {
-                    return StatefulBuilder(
-                      builder: (context, setStateDialog) {
-                        return ShadDialog(
-                          title: Text("${AppLocalizations.of(context)!.installer} GhostScript"),
-                          description: showFinalMessage == 0
-                              ? RichText(
-                                  text: TextSpan(
-                                    style: const TextStyle(color: Colors.white70),
-                                    children: [
-                                      TextSpan(text: AppLocalizations.of(context)!.toInstall),
-                                      TextSpan(
-                                        text: AppLocalizations.of(context)!.ici,
-                                        style: const TextStyle(decoration: TextDecoration.underline),
-                                        recognizer: TapGestureRecognizer()
-                                          ..onTap = () {
-                                            if (Platform.isMacOS) openInBrowser("https://files.bassinecorp.fr/Ghostscript-10.04.0.pkg");
-                                            if (Platform.isWindows) openInBrowser("https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10040/gs10040w64.exe");
-                                            if (Platform.isLinux) openInBrowser("https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10040/gs_10.04.0_amd64_snap.tgz");
-                                          },
-                                      ),
-                                      const TextSpan(text: " "),
-                                      TextSpan(text: AppLocalizations.of(context)!.installerGs),
-                                    ],
-                                  ),
-                                )
-                              : showFinalMessage == 1
-                                  ? finalMessage(context, false)
-                                  : finalMessage(context, true),
-                          actions: [
-                            ShadButton(
-                              child: const Text('OK'),
-                              onPressed: () {
-                                if (alreadyPressed) {
-                                  Navigator.pop(context);
-                                  setStateDialog(() {
-                                    alreadyPressed = false;
-                                    showFinalMessage = 0;
-                                  });
-                                } else {
-                                  setStateDialog(() {
-                                    alreadyPressed = true;
-                                    _gsController.text = getGsPath(true);
-                                    if (_gsController.text.isEmpty) {
-                                      showFinalMessage = 2;
-                                    } else {
-                                      showFinalMessage = 1;
-                                    }
-                                  });
-                                }
-                              },
-                            ),
-                          ],
-                        );
-                      },
-                    );
+                    return installationMessage("GhostScript");
                   },
                 );
               },
               AppLocalizations.of(context)!.tooltipGhostscript,
             ),
-            pathField(context, _defaultOutputController, AppLocalizations.of(context)!.dossierParDefaut, "defaultOutputPath", (value) {
-              if (value != null && value.isNotEmpty && !Directory(value).existsSync()) {
-                return AppLocalizations.of(context)!.pathErreur("dossier");
-              } else if (value == null || value.isEmpty) {
-                box.remove("defaultOutputPath");
-              }
-              return null;
-            }, () async {
-              final dirPath = (await FilePicker.platform.getDirectoryPath())!;
-              _defaultOutputController.text = dirPath;
-              box.write("defaultOutputPath", dirPath);
-              setState(() {});
-            }),
+            pathField(
+              context,
+              _magickController,
+              AppLocalizations.of(context)!.currentPath("ImageMagick"),
+              "magickPath",
+              (value) {
+                if (value!.isNotEmpty && !File(value).existsSync()) {
+                  return AppLocalizations.of(context)!.filePathError;
+                }
+                return null;
+              },
+              () async {
+                await pickBin();
+                setState(() {});
+              },
+              () {
+                showShadDialog(
+                  context: context,
+                  builder: (context) {
+                    return installationMessage("ImageMagick");
+                  },
+                );
+              },
+              AppLocalizations.of(context)!.tooltipImageMagick,
+            ),
+            pathField(
+              context,
+              _defaultOutputController,
+              AppLocalizations.of(context)!.dossierParDefaut,
+              "defaultOutputPath",
+              (value) {
+                if (value != null && value.isNotEmpty && !Directory(value).existsSync()) {
+                  return AppLocalizations.of(context)!.dirPathError;
+                } else if (value == null || value.isEmpty) {
+                  box.remove("defaultOutputPath");
+                }
+                return null;
+              },
+              () async {
+                final dirPath = await getDirectoryPath();
+                _defaultOutputController.text = dirPath!;
+                box.write("defaultOutputPath", dirPath);
+                setState(() {});
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: settingsSwitch(AppLocalizations.of(context)!.changeName, "changeOutputName"),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 150,
+                    child: ShadInput(
+                      enabled: box.read("changeOutputName") ?? false,
+                      readOnly: true,
+                      placeholder: const Text("Nom du fichier"),
+                      placeholderAlignment: Alignment.center,
+                    ),
+                  ),
+                  Expanded(
+                    child: ShadInputFormField(
+                      enabled: box.read("changeOutputName") ?? false,
+                      controller: _outputNameController,
+                      // Supprimer tous les caractères qui ne doivent pas être dans un nom de fichier
+
+                      inputFormatters: [
+                        FilteringTextInputFormatter.deny(RegExp(r'[<>:"/\\|?*\x00-\x1F]')),
+                        FilteringTextInputFormatter.deny(RegExp(r'[\x7F-\xFF]')),
+                        FilteringTextInputFormatter.deny(RegExp(r"[']")),
+                      ],
+                      onSubmitted: (value) {
+                        if (_formKey.currentState!.saveAndValidate()) {
+                          box.write("outputName", _outputNameController.text);
+                        }
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    width: 130,
+                    child: ShadInput(
+                      enabled: box.read("changeOutputName") ?? false,
+                      readOnly: true,
+                      placeholder: const Text("Extension"),
+                      textAlign: TextAlign.center,
+                      placeholderAlignment: Alignment.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 15),
             ListTile(
               title: Text(AppLocalizations.of(context)!.langue),
               subtitle: Column(
@@ -212,25 +283,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             Padding(
               padding: const EdgeInsets.only(right: 20),
-              child: ListTile(
-                title: Text(
-                  AppLocalizations.of(context)!.checkUpdates,
-                ),
-                trailing: Transform.scale(
-                  scale: Platform.isMacOS ? 0.70 : 0.75,
-                  child: Switch.adaptive(
-                    value: box.read("checkUpdates") ?? false,
-                    thumbColor: WidgetStateProperty.resolveWith((states) => Colors.black),
-                    activeColor: Colors.white,
-                    activeTrackColor: Colors.white,
-                    onChanged: (value) {
-                      setState(() {
-                        box.write("checkUpdates", value);
-                      });
-                    },
-                  ),
-                ),
-              ),
+              child: settingsSwitch(AppLocalizations.of(context)!.checkUpdates, "checkUpdates"),
             ),
             const Divider(
               color: Colors.white12,
@@ -272,6 +325,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       },
                       icon: const Icon(LucideIcons.github, size: 25)),
                 ),
+                ShadTooltip(
+                  builder: (context) => const Text("Twitter: el2zay"),
+                  child: IconButton(
+                      onPressed: () {
+                        openInBrowser("https://x.com/el2zay/");
+                      },
+                      icon: const Icon(LucideIcons.twitter, size: 25)),
+                ),
               ],
             )
           ],
@@ -300,62 +361,173 @@ class _SettingsPageState extends State<SettingsPage> {
               : const SizedBox(width: 0),
         ],
       ),
-      subtitle: Row(
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: ShadInputFormField(
-              controller: controller,
-              onSubmitted: (value) {
-                if (_formKey.currentState!.saveAndValidate()) {
-                  box.write(valueToSave, controller.text);
-                }
-              },
-              validator: validator,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: ShadInputFormField(
+                  controller: controller,
+                  onEditingComplete: () {
+                    if (_formKey.currentState!.saveAndValidate()) {
+                      box.write(valueToSave, controller.text);
+                    }
+                  },
+                  validator: validator,
+                ),
+              ),
+              const SizedBox(width: 20),
+              ShadButton.outline(
+                onPressed: () {
+                  onPressed();
+                },
+                child: Text(AppLocalizations.of(context)!.explorer),
+              ),
+              const SizedBox(width: 5),
+              if (secondOnPress != null)
+                ShadButton.outline(
+                  onPressed: () {
+                    secondOnPress();
+                  },
+                  child: Text(AppLocalizations.of(context)!.installer),
+                )
+            ],
           ),
-          const SizedBox(width: 20),
-          ShadButton.outline(
-            onPressed: () {
-              onPressed();
-            },
-            // TODO pourquoi explorer bouge quand il y a une erreur du validator
-            child: Text(AppLocalizations.of(context)!.explorer),
-          ),
-          const SizedBox(width: 5),
-          if (secondOnPress != null)
-            ShadButton.outline(
-              onPressed: () {
-                secondOnPress();
-              },
-              child: Text(AppLocalizations.of(context)!.installer),
-            )
         ],
       ),
     );
   }
-}
 
-Widget finalMessage(context, error) {
-  return Column(
-    children: [
-      Icon(
-        error ? CupertinoIcons.xmark_circle : CupertinoIcons.check_mark_circled_solid,
-        color: error == true ? Colors.red : CupertinoColors.systemGreen,
-        size: 50,
+  Widget settingsSwitch(String title, String valueToSave) {
+    return ListTile(
+      title: Text(title),
+      trailing: Transform.scale(
+        scale: Platform.isMacOS ? 0.70 : 0.75,
+        child: Switch.adaptive(
+          value: box.read(valueToSave) ?? false,
+          thumbColor: WidgetStateProperty.resolveWith((states) => Colors.black),
+          activeColor: Colors.white,
+          activeTrackColor: Colors.white,
+          onChanged: (value) {
+            setState(() {
+              box.write(valueToSave, value);
+            });
+          },
+        ),
       ),
-      const SizedBox(height: 10),
-      Text(!error ? AppLocalizations.of(context)!.gsSuccess0 : AppLocalizations.of(context)!.gsError0, style: const TextStyle(fontSize: 20, color: Colors.white)),
-      Text(!error ? AppLocalizations.of(context)!.gsSuccess1 : AppLocalizations.of(context)!.gsError1, style: const TextStyle(fontSize: 15, color: Colors.white70)),
-    ],
-  );
-}
+    );
+  }
 
-String formatSize(int bytes) {
-  if (bytes < 1024) return '$bytes o';
-  final kb = bytes / 1024;
-  if (kb < 1024) return '${kb.toStringAsFixed(2)} Ko';
-  final mb = kb / 1024;
-  if (mb < 1024) return '${mb.toStringAsFixed(2)} Mo';
-  final gb = mb / 1024;
-  return '${gb.toStringAsFixed(2)} Go';
+  Widget finalMessage(context, name, error) {
+    return Column(
+      children: [
+        Icon(
+          error ? CupertinoIcons.xmark_circle : CupertinoIcons.check_mark_circled_solid,
+          color: error == true ? Colors.red : CupertinoColors.systemGreen,
+          size: 50,
+        ),
+        const SizedBox(height: 10),
+        Text(!error ? AppLocalizations.of(context)!.installationSuccess0(name) : AppLocalizations.of(context)!.installationError0(name), style: const TextStyle(fontSize: 17, color: Colors.white)),
+        const SizedBox(height: 10),
+        Text(
+            !error && name == "GhostScript"
+                ? AppLocalizations.of(context)!.gsSuccess
+                : !error && name == "ImageMagick"
+                    ? AppLocalizations.of(context)!.magickSuccess
+                    : AppLocalizations.of(context)!.installationError1,
+            style: const TextStyle(fontSize: 15, color: Colors.white70))
+      ],
+    );
+  }
+
+  Widget installationMessage(name) {
+    var brewPath = "";
+    if (Platform.isMacOS) {
+      final result = Process.runSync("which", [
+        "bre" // TODO change to brew
+      ]);
+
+      if (result.exitCode == 0) {
+        brewPath = result.stdout.trim();
+      }
+    }
+    return StatefulBuilder(
+      builder: (context, setStateDialog) {
+        return ShadDialog(
+          title: Text("${AppLocalizations.of(context)!.installer} $name"),
+          description: showFinalMessage == 0 && brewPath.isEmpty
+              ? SelectableText.rich(
+                  TextSpan(
+                    style: const TextStyle(color: Colors.white70),
+                    children: [
+                      TextSpan(text: AppLocalizations.of(context)!.toInstall(name)),
+                      TextSpan(
+                        text: AppLocalizations.of(context)!.ici,
+                        style: const TextStyle(decoration: TextDecoration.underline),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            if (Platform.isMacOS) openInBrowser(name == "GhostScript" ? "https://files.bassinecorp.fr/Ghostscript-10.04.0.pkg" : "https://imagemagick.org/archive/binaries/ImageMagick-x86_64-apple-darwin20.1.0.tar.gz");
+                            if (Platform.isWindows) openInBrowser(name == "GhostScript" ? "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10040/gs10040w64.exe" : "https://imagemagick.org/archive/binaries/ImageMagick-7.1.1-46-Q16-HDRI-x64-dll.exe");
+                            if (Platform.isLinux) openInBrowser(name == "GhostScript" ? "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10040/gs_10.04.0_amd64_snap.tgz" : "https://imagemagick.org/archive/binaries/magick");
+                          },
+                      ),
+                      const TextSpan(text: " "),
+                      if (name == "GhostScript" || (name == "ImageMagick" && Platform.isWindows)) TextSpan(text: AppLocalizations.of(context)!.installerGs1MagickWindows) else if (name == "ImageMagick" && Platform.isLinux) TextSpan(text: AppLocalizations.of(context)!.installerMagickLinux)
+                    ],
+                  ),
+                )
+              : showFinalMessage == 0 && brewPath.isNotEmpty
+                  ? SelectableText(AppLocalizations.of(context)!.brewMessage)
+                  : showFinalMessage == 1
+                      ? finalMessage(context, name, false)
+                      : finalMessage(context, name, true),
+          actions: [
+            ShadButton(
+              child: const Text('OK'),
+              onPressed: () {
+                if (alreadyPressed) {
+                  Navigator.pop(context);
+                  setStateDialog(() {
+                    alreadyPressed = false;
+                    showFinalMessage = 0;
+                  });
+                } else {
+                  setStateDialog(() {
+                    alreadyPressed = true;
+                    if (name == "GhostScript") {
+                      _gsController.text = getGsPath(true);
+                    } else {
+                      _magickController.text = getMagickPath(true);
+                    }
+
+                    if (name == "GhostScript" && _gsController.text.isEmpty) {
+                      showFinalMessage = 2;
+                    } else if (name == "ImageMagick" && _magickController.text.isEmpty) {
+                      // TODO décommenter
+                      installer();
+                      // showFinalMessage = 2;
+                    } else if (name == "GhostScript" && _gsController.text.isNotEmpty || name == "ImageMagick" && _magickController.text.isNotEmpty) {
+                      showFinalMessage = 1;
+                    }
+                  });
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String formatSize(int bytes) {
+    if (bytes < 1024) return '$bytes o';
+    final kb = bytes / 1024;
+    if (kb < 1024) return '${kb.toStringAsFixed(2)} Ko';
+    final mb = kb / 1024;
+    if (mb < 1024) return '${mb.toStringAsFixed(2)} Mo';
+    final gb = mb / 1024;
+    return '${gb.toStringAsFixed(2)} Go';
+  }
 }
