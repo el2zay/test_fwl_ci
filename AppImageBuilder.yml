@@ -7,13 +7,13 @@ script:
  - rm -rf AppDir || true
  - cp -r build/linux/x64/release/bundle AppDir
  - mkdir -p AppDir/usr/share/icons/hicolor/64x64/apps/
- - cp assets/app_icon64 AppDir/usr/share/icons/hicolor/64x64/apps/
+ - cp assets/app_icon64.png AppDir/usr/share/icons/hicolor/64x64/apps/
 AppDir:
   path: ./AppDir
   app_info:
     id: com.el2zay.fileweightloss
     name: File Weight Loss
-    icon: assets/app_icon64
+    icon: assets/app_icon64.png
     version: latest
     exec: fileweightloss
     exec_args: $@
